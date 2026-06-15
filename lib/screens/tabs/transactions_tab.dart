@@ -112,11 +112,12 @@ class _TransactionsTabState extends State<TransactionsTab> {
             color: isSelected ? const Color(0xFFFFA27F) : Colors.white.withOpacity(0.1),
           ),
         ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? const Color(0xFF1E1E2C) : Colors.white,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? const Color(0xFF1E1E2C) : Colors.white,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
         ),
       ),
     );
