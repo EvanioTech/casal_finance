@@ -16,6 +16,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   bool _isExpense = true;
   final _amountController = TextEditingController();
   final _descController = TextEditingController();
+  final _customAmountController = TextEditingController();
+  String _splitType = 'all'; // 'all', 'half', 'custom'
   bool _isLoading = false;
 
   String _selectedCategory = 'Diversos';
@@ -63,21 +65,50 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     setState(() => _isLoading = true);
 
     try {
-      double amount = double.tryParse(_amountController.text.replaceAll('R\$', '').replaceAll('.', '').replaceAll(',', '.').trim()) ?? 0.0;
+      double totalAmount = double.tryParse(_amountController.text.replaceAll('R\$', '').replaceAll('.', '').replaceAll(',', '.').trim()) ?? 0.0;
       User? user = AuthService().currentUser;
       if (user != null) {
-        // For now, coupleId is just the user's UID. In a real app, you'd fetch their UserModel.
-        TransactionModel newTx = TransactionModel(
+        double myAmount = totalAmount;
+        double spouseAmount = 0.0;
+
+        if (_isExpense && _splitType != 'all') {
+          if (_splitType == 'half') {
+            myAmount = totalAmount / 2;
+            spouseAmount = totalAmount / 2;
+          } else if (_splitType == 'custom') {
+            myAmount = double.tryParse(_customAmountController.text.replaceAll('R\$', '').replaceAll('.', '').replaceAll(',', '.').trim()) ?? totalAmount;
+            spouseAmount = totalAmount - myAmount;
+            if (spouseAmount < 0) spouseAmount = 0;
+            if (myAmount > totalAmount) myAmount = totalAmount;
+          }
+        }
+
+        TransactionModel myTx = TransactionModel(
           id: '',
-          title: _descController.text.trim(),
+          title: _descController.text.trim() + (spouseAmount > 0 ? ' (Minha Parte)' : ''),
           category: _selectedCategory,
-          amount: amount,
+          amount: myAmount,
           date: _selectedDate,
           isExpense: _isExpense,
           createdBy: user.uid,
           coupleId: user.uid,
         );
-        await DatabaseService().addTransaction(newTx);
+        await DatabaseService().addTransaction(myTx);
+
+        if (spouseAmount > 0) {
+          TransactionModel spouseTx = TransactionModel(
+            id: '',
+            title: _descController.text.trim() + ' (Parte do Cônjuge)',
+            category: _selectedCategory,
+            amount: spouseAmount,
+            date: _selectedDate,
+            isExpense: _isExpense,
+            createdBy: 'spouse_${user.uid}', // Placeholder para o cônjuge
+            coupleId: user.uid,
+          );
+          await DatabaseService().addTransaction(spouseTx);
+        }
+
         if (!mounted) return;
         Navigator.pop(context);
       }
@@ -207,6 +238,65 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   ),
                 ),
               ),
+              if (_isExpense) ...[
+                const SizedBox(height: 32),
+                FadeInUp(
+                  delay: const Duration(milliseconds: 900),
+                  duration: const Duration(milliseconds: 600),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Divisão da Despesa', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: RadioListTile<String>(
+                                title: const Text('Eu pago tudo', style: TextStyle(color: Colors.white, fontSize: 13)),
+                                value: 'all',
+                                groupValue: _splitType,
+                                onChanged: (val) => setState(() => _splitType = val!),
+                                activeColor: const Color(0xFFFFA27F),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            Expanded(
+                              child: RadioListTile<String>(
+                                title: const Text('Dividir 50/50', style: TextStyle(color: Colors.white, fontSize: 13)),
+                                value: 'half',
+                                groupValue: _splitType,
+                                onChanged: (val) => setState(() => _splitType = val!),
+                                activeColor: const Color(0xFFFFA27F),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ],
+                        ),
+                        RadioListTile<String>(
+                          title: const Text('Valor personalizado (O que eu pago)', style: TextStyle(color: Colors.white, fontSize: 13)),
+                          value: 'custom',
+                          groupValue: _splitType,
+                          onChanged: (val) => setState(() => _splitType = val!),
+                          activeColor: const Color(0xFFFFA27F),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        if (_splitType == 'custom')
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: _buildTextField('Valor que eu vou pagar (Ex: 50.00)', Icons.attach_money, controller: _customAmountController, isNumber: true),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 48),
               FadeInUp(
                 delay: const Duration(milliseconds: 1000),
@@ -233,7 +323,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  Widget _buildTextField(String label, IconData icon, {TextEditingController? controller}) {
+  Widget _buildTextField(String label, IconData icon, {TextEditingController? controller, bool isNumber = false}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
@@ -242,6 +332,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       ),
       child: TextField(
         controller: controller,
+        keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           hintText: label,

@@ -8,8 +8,15 @@ import 'package:casal_finance/services/database_service.dart';
 import 'package:casal_finance/services/auth_service.dart';
 import 'package:casal_finance/models/transaction_model.dart';
 
-class HomeTab extends StatelessWidget {
+class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
+
+  @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  bool _isIndividualView = true;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +30,11 @@ class HomeTab extends StatelessWidget {
           List<TransactionModel> recent = [];
 
           if (snapshot.hasData) {
-            final txs = snapshot.data!;
+            final currentUserUid = AuthService().currentUser?.uid;
+            var txs = snapshot.data!;
+            if (_isIndividualView) {
+              txs = txs.where((tx) => tx.createdBy == currentUserUid).toList();
+            }
             recent = txs.take(3).toList();
             for (var tx in txs) {
               if (tx.isExpense) {
@@ -109,13 +120,46 @@ class HomeTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Saldo Conjunto',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _isIndividualView ? 'Meu Saldo' : 'Saldo Conjunto',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _isIndividualView = !_isIndividualView;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _isIndividualView ? Icons.person : Icons.people,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _isIndividualView ? 'Individual' : 'Casal',
+                                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Text(

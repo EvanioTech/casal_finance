@@ -1,8 +1,37 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
+import 'package:casal_finance/models/notification_model.dart';
+import 'package:casal_finance/services/database_service.dart';
+import 'package:casal_finance/services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  String? _coupleId;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCoupleId();
+  }
+
+  void _fetchCoupleId() async {
+    final user = AuthService().currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _coupleId = doc.data()?['coupleId'] ?? user.uid;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,41 +44,62 @@ class NotificationsScreen extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(24.0),
-          children: [
-            FadeInUp(
-              duration: const Duration(milliseconds: 600),
-              child: _buildNotificationItem(
-                'Nova despesa adicionada',
-                'Seu parceiro adicionou uma despesa de R\$ 450 no Supermercado.',
-                'Há 2 horas',
-                Icons.shopping_cart_outlined,
+        child: _coupleId == null
+            ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFA27F)))
+            : StreamBuilder<List<NotificationModel>>(
+                stream: DatabaseService().getNotifications(_coupleId!),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator(color: Color(0xFFFFA27F)));
+                  }
+                  
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                      child: Text('Nenhuma notificação por enquanto.', style: TextStyle(color: Colors.white54)),
+                    );
+                  }
+
+                  final notifs = snapshot.data!;
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(24.0),
+                    itemCount: notifs.length,
+                    itemBuilder: (context, index) {
+                      final n = notifs[index];
+                      // Simple time ago formatter
+                      final diff = DateTime.now().difference(n.date);
+                      String timeStr = 'Agora mesmo';
+                      if (diff.inDays > 0) {
+                        timeStr = 'Há ${diff.inDays} dia(s)';
+                      } else if (diff.inHours > 0) {
+                        timeStr = 'Há ${diff.inHours} hora(s)';
+                      } else if (diff.inMinutes > 0) {
+                        timeStr = 'Há ${diff.inMinutes} minuto(s)';
+                      }
+
+                      IconData iconData = Icons.notifications_outlined;
+                      switch(n.iconName) {
+                        case 'shopping_cart_outlined': iconData = Icons.shopping_cart_outlined; break;
+                        case 'account_balance_wallet_outlined': iconData = Icons.account_balance_wallet_outlined; break;
+                        case 'emoji_events_outlined': iconData = Icons.emoji_events_outlined; break;
+                        case 'warning_amber_rounded': iconData = Icons.warning_amber_rounded; break;
+                      }
+
+                      return FadeInUp(
+                        delay: Duration(milliseconds: 100 * (index < 5 ? index : 5)),
+                        duration: const Duration(milliseconds: 600),
+                        child: _buildNotificationItem(
+                          n.title,
+                          n.subtitle,
+                          timeStr,
+                          iconData,
+                          isWarning: n.isWarning,
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
-            ),
-            FadeInUp(
-              delay: const Duration(milliseconds: 200),
-              duration: const Duration(milliseconds: 600),
-              child: _buildNotificationItem(
-                'Alerta de Orçamento',
-                'Vocês atingiram 80% do orçamento de Lazer.',
-                'Ontem',
-                Icons.warning_amber_rounded,
-                isWarning: true,
-              ),
-            ),
-            FadeInUp(
-              delay: const Duration(milliseconds: 400),
-              duration: const Duration(milliseconds: 600),
-              child: _buildNotificationItem(
-                'Meta atingida!',
-                'Parabéns, vocês atingiram a meta "Reserva de Emergência"!',
-                '12 de Junho',
-                Icons.emoji_events_outlined,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
