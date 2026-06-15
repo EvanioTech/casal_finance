@@ -1,5 +1,10 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
+import 'package:casal_finance/screens/login_screen.dart';
+import 'package:casal_finance/screens/profile/edit_profile_screen.dart';
+import 'package:casal_finance/screens/profile/security_screen.dart';
+import 'package:casal_finance/screens/profile/settings_screen.dart';
+import 'package:casal_finance/screens/profile/help_screen.dart';
 
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
@@ -90,17 +95,37 @@ class ProfileTab extends StatelessWidget {
               duration: const Duration(milliseconds: 600),
               child: Column(
                 children: [
-                  _buildProfileOption(Icons.person_outline, 'Editar Perfil'),
-                  _buildProfileOption(Icons.security_outlined, 'Segurança'),
-                  _buildProfileOption(Icons.settings_outlined, 'Configurações'),
-                  _buildProfileOption(Icons.help_outline, 'Ajuda e Suporte'),
+                  _buildProfileOption(
+                    Icons.person_outline,
+                    'Editar Perfil',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())),
+                  ),
+                  _buildProfileOption(
+                    Icons.security_outlined,
+                    'Segurança',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SecurityScreen())),
+                  ),
+                  _buildProfileOption(
+                    Icons.settings_outlined,
+                    'Configurações',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+                  ),
+                  _buildProfileOption(
+                    Icons.help_outline,
+                    'Ajuda e Suporte',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen())),
+                  ),
                   const SizedBox(height: 24),
                   _buildProfileOption(
                     Icons.logout,
                     'Sair da Conta',
                     isDestructive: true,
                     onTap: () {
-                      Navigator.pop(context); // Básico para voltar ao login
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        (route) => false,
+                      );
                     },
                   ),
                 ],
