@@ -1,4 +1,5 @@
 import 'package:animate_do/animate_do.dart';
+import 'package:casal_finance/screens/main_screen.dart';
 import 'package:flutter/material.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -117,7 +118,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   duration: const Duration(milliseconds: 800),
                   child: ElevatedButton(
                     onPressed: () {
-                      // Action for Register
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => const MainScreen()),
+                        (route) => false,
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFA27F),

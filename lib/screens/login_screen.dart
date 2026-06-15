@@ -1,5 +1,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:casal_finance/screens/register_screen.dart';
+import 'package:casal_finance/screens/main_screen.dart';
 import 'package:flutter/material.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -109,7 +110,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   duration: const Duration(milliseconds: 800),
                   child: ElevatedButton(
                     onPressed: () {
-                      // Action for Login
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => const MainScreen()),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFA27F),
