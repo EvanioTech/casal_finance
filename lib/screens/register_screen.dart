@@ -1,5 +1,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:casal_finance/screens/main_screen.dart';
+import 'package:casal_finance/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -16,6 +17,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
+  bool _isGoogleLoading = false;
+
+  void _loginWithGoogle() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      await AuthService().signInWithGoogle();
+      if (!mounted) return;
+      Navigator.pop(context); // AuthWrapper cuidará do resto
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString(), style: const TextStyle(color: Colors.white)), backgroundColor: Colors.redAccent));
+    } finally {
+      if (mounted) setState(() => _isGoogleLoading = false);
+    }
+  }
+
+  void _register() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty || _nameController.text.isEmpty) return;
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('As senhas não coincidem.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.redAccent));
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      await AuthService().signUpWithEmail(_emailController.text.trim(), _passwordController.text.trim(), _nameController.text.trim());
+      if (!mounted) return;
+      Navigator.pop(context); // Voltar para onde o AuthWrapper vai cuidar (Login -> Main)
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString(), style: const TextStyle(color: Colors.white)), backgroundColor: Colors.redAccent));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -117,13 +153,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   delay: const Duration(milliseconds: 1200),
                   duration: const Duration(milliseconds: 800),
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const MainScreen()),
-                        (route) => false,
-                      );
-                    },
+                    onPressed: _isLoading || _isGoogleLoading ? null : _register,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFA27F),
                       foregroundColor: const Color(0xFF1E1E2C),
@@ -133,13 +163,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Cadastrar',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(color: Color(0xFF1E1E2C), strokeWidth: 2),
+                          )
+                        : const Text(
+                            'Cadastrar',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                FadeInUp(
+                  delay: const Duration(milliseconds: 1300),
+                  duration: const Duration(milliseconds: 800),
+                  child: Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text('Ou', style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                      ),
+                      Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                FadeInUp(
+                  delay: const Duration(milliseconds: 1400),
+                  duration: const Duration(milliseconds: 800),
+                  child: OutlinedButton(
+                    onPressed: _isGoogleLoading || _isLoading ? null : _loginWithGoogle,
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
+                    child: _isGoogleLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.g_mobiledata, color: Colors.white, size: 32),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Entrar com o Google',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ),
                 const SizedBox(height: 24),

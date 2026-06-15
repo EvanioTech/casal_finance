@@ -1,6 +1,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
-import 'package:casal_finance/screens/login_screen.dart';
+import 'package:casal_finance/services/auth_service.dart';
 import 'package:casal_finance/screens/profile/edit_profile_screen.dart';
 import 'package:casal_finance/screens/profile/security_screen.dart';
 import 'package:casal_finance/screens/profile/settings_screen.dart';
@@ -120,12 +120,8 @@ class ProfileTab extends StatelessWidget {
                     Icons.logout,
                     'Sair da Conta',
                     isDestructive: true,
-                    onTap: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
-                        (route) => false,
-                      );
+                    onTap: () async {
+                      await AuthService().signOut();
                     },
                   ),
                 ],

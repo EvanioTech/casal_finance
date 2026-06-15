@@ -1,5 +1,12 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
+import 'package:casal_finance/screens/home/add_transaction_screen.dart';
+import 'package:casal_finance/screens/home/budget_screen.dart';
+import 'package:casal_finance/screens/home/notifications_screen.dart';
+import 'package:casal_finance/screens/tabs/goals_tab.dart';
+import 'package:casal_finance/services/database_service.dart';
+import 'package:casal_finance/services/auth_service.dart';
+import 'package:casal_finance/models/transaction_model.dart';
 
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
@@ -7,10 +14,32 @@ class HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: StreamBuilder<List<TransactionModel>>(
+        stream: DatabaseService().getTransactions(AuthService().currentUser?.uid ?? ''),
+        builder: (context, snapshot) {
+          double totalBalance = 0;
+          double totalIncome = 0;
+          double totalExpense = 0;
+          List<TransactionModel> recent = [];
+
+          if (snapshot.hasData) {
+            final txs = snapshot.data!;
+            recent = txs.take(3).toList();
+            for (var tx in txs) {
+              if (tx.isExpense) {
+                totalExpense += tx.amount;
+                totalBalance -= tx.amount;
+              } else {
+                totalIncome += tx.amount;
+                totalBalance += tx.amount;
+              }
+            }
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             FadeInDown(
               duration: const Duration(milliseconds: 600),
@@ -38,15 +67,18 @@ class HomeTab extends StatelessWidget {
                       ),
                     ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.notifications_outlined,
-                      color: Colors.white,
+                  GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.notifications_outlined,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],
@@ -86,9 +118,9 @@ class HomeTab extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'R\$ 12.450,00',
-                      style: TextStyle(
+                    Text(
+                      'R\$ ${totalBalance.toStringAsFixed(2)}',
+                      style: const TextStyle(
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -98,8 +130,8 @@ class HomeTab extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildCardStat(Icons.arrow_downward, 'Receitas', 'R\$ 15.000'),
-                        _buildCardStat(Icons.arrow_upward, 'Despesas', 'R\$ 2.550'),
+                        _buildCardStat(Icons.arrow_downward, 'Receitas', 'R\$ ${totalIncome.toStringAsFixed(2)}'),
+                        _buildCardStat(Icons.arrow_upward, 'Despesas', 'R\$ ${totalExpense.toStringAsFixed(2)}'),
                       ],
                     ),
                   ],
@@ -126,10 +158,41 @@ class HomeTab extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildQuickAction(Icons.add, 'Nova\nDespesa'),
-                  _buildQuickAction(Icons.pie_chart_outline, 'Orçamento'),
-                  _buildQuickAction(Icons.flag_outlined, 'Metas'),
-                  _buildQuickAction(Icons.more_horiz, 'Mais'),
+                  _buildQuickAction(
+                    Icons.add, 
+                    'Nova\nDespesa',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddTransactionScreen())),
+                  ),
+                  _buildQuickAction(
+                    Icons.pie_chart_outline, 
+                    'Orçamento',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BudgetScreen())),
+                  ),
+                  _buildQuickAction(
+                    Icons.flag_outlined, 
+                    'Metas',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const Scaffold(backgroundColor: Color(0xFF1E1E2C), body: GoalsTab()))),
+                  ),
+                  _buildQuickAction(
+                    Icons.more_horiz, 
+                    'Mais',
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: const Color(0xFF1E1E2C),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                        ),
+                        builder: (context) => Container(
+                          padding: const EdgeInsets.all(24),
+                          height: 200,
+                          child: const Center(
+                            child: Text('Mais opções em breve...', style: TextStyle(color: Colors.white, fontSize: 18)),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -150,16 +213,25 @@ class HomeTab extends StatelessWidget {
             FadeInUp(
               delay: const Duration(milliseconds: 1000),
               duration: const Duration(milliseconds: 600),
-              child: Column(
-                children: [
-                  _buildTransactionItem(Icons.shopping_cart_outlined, 'Supermercado', 'Ontem', '- R\$ 450,00', true),
-                  _buildTransactionItem(Icons.restaurant_outlined, 'Jantar', '20 Jun', '- R\$ 120,00', true),
-                  _buildTransactionItem(Icons.work_outline, 'Salário', '15 Jun', '+ R\$ 8.000,00', false),
-                ],
-              ),
+              child: recent.isEmpty 
+                  ? const Text('Nenhuma transação ainda.', style: TextStyle(color: Colors.white))
+                  : Column(
+                      children: recent.map((tx) {
+                        final prefix = tx.isExpense ? '- R\$ ' : '+ R\$ ';
+                        return _buildTransactionItem(
+                          tx.isExpense ? Icons.shopping_cart_outlined : Icons.attach_money,
+                          tx.title,
+                          "${tx.date.day}/${tx.date.month}",
+                          "$prefix${tx.amount.toStringAsFixed(2)}",
+                          tx.isExpense,
+                        );
+                      }).toList(),
+                    ),
             ),
           ],
         ),
+      );
+        },
       ),
     );
   }
@@ -200,29 +272,32 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickAction(IconData icon, String label) {
-    return Column(
-      children: [
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+  Widget _buildQuickAction(IconData icon, String label, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: Icon(icon, color: const Color(0xFFFFA27F), size: 28),
           ),
-          child: Icon(icon, color: const Color(0xFFFFA27F), size: 28),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withOpacity(0.7),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.7),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
